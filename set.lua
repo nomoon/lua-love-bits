@@ -77,7 +77,7 @@ local Set = {
 --  Stash for private instance variables and metatable
 --
 local _private = setmetatable({}, {__mode = "k"})
-local _mt = {}
+local _imt, _cmt = {}, {}
 
 --
 --  Helper: Flattens/sanitizes a table into its values.
@@ -112,16 +112,14 @@ end
 --
 function Set.new(...)
     local self = {}
-    setmetatable(self, _mt)
+    setmetatable(self, _imt)
 
     _private[self] = {
         items = {},
         size  = 0
     }
 
-    self:add(...)
-
-    return self
+    return self:add(...)
 end
 
 --
@@ -262,18 +260,25 @@ function Set:class()
     return Set
 end
 
+--------------------
+-- Class Metatable
+--------------------
+_cmt.__index = Set
+_cmt.__metatable = Set._VERSION
+_cmt.__call = function(_, ...) return Set.new(...) end
+setmetatable(Set, _cmt)
+
 ------------------------
 --  Instance Metatable
 ------------------------
-
-_mt.__index = Set
-_mt.__metatable = Set._VERSION
+_imt.__index = _cmt.__index
+_imt.__metatable = _cmt.__metatable
 
 --
 --  Calling a Set instance with no parameters aliases :items(), and with
 --    parameters aliases :contains(items...)
 --
-_mt.__call = function(self, ...)
+_imt.__call = function(self, ...)
     if (#{...} > 0) then return self:contains(...)
     else return self:items() end
 end
@@ -281,27 +286,27 @@ end
 --
 --  Using the + operator will attempt to return a union.
 --
-_mt.__add = Set.union
+_imt.__add = Set.union
 
 --
 --  Using the - operator will attempt to return a complement.
 --
-_mt.__sub = Set.complement
+_imt.__sub = Set.complement
 
 --
 --  The * operator will attempt to return an intersection.
 --
-_mt.__mul = Set.intersect
+_imt.__mul = Set.intersect
 
 --
 --  The # operator will return the size.
 --
-_mt.__len = Set.size
+_imt.__len = Set.size
 
 --
 --  The equality operator will attempt to function on other sets.
 --
-_mt.__eq = function(self, param)
+_imt.__eq = function(self, param)
     if getmetatable(self) == getmetatable(param) then
         return self:contains(param:items())
     else
@@ -312,7 +317,7 @@ end
 --
 --  Some pretty printing
 --
-_mt.__tostring = function(self)
+_imt.__tostring = function(self)
     local items = self:items()
     for i,v in ipairs(items) do
         if(type(v) == "string") then
@@ -321,18 +326,8 @@ _mt.__tostring = function(self)
         end
     end
 
-    return 'S{ ' .. table.concat(items, ', ') .. ' }'
+    return 'S{' .. table.concat(items, ', ') .. '}'
 end
-
---------------------
--- Class Metatable
---------------------
-
-setmetatable(Set, {
-    __call = function(_, ...)
-        return Set.new(...)
-    end
-})
 
 ---------------
 -- Unit Tests
