@@ -69,17 +69,20 @@ local Set = {
     ]]
 }
 
+-------------------
+--  Private Stuff
+-------------------
+
 --
---  Stash for private instance variables.
+--  Stash for private instance variables and metatable
 --
 local _private = setmetatable({}, {__mode = "k"})
+local _mt = {}
 
 --
---  Private Helper functions
+--  Helper: Flattens/sanitizes a table into its values.
 --
-
---  Flattens/sanitizes a table into its values.
-local function flatten(tbl)
+local function _flatten(tbl)
     local insert = table.insert
     local result = {}
 
@@ -99,21 +102,24 @@ local function flatten(tbl)
     return result
 end
 
+------------------
+--  Public Stuff
+------------------
+
 --
 --  Class constructor:
 --  Set.new(items...) or Set(items...)
 --
 function Set.new(...)
     local self = {}
-    setmetatable(self, Set.mt)
+    setmetatable(self, _mt)
 
-    local list = flatten({...})
+    _private[self] = {
+        items = {},
+        size  = 0
+    }
 
-    _private[self] = {}
-    _private[self].items = {}
-    _private[self].size = 0
-
-    self:add(list)
+    self:add(...)
 
     return self
 end
@@ -123,9 +129,10 @@ end
 --    Returns a table of all items in the set.
 --
 function Set:items()
-    local items = {}
-    for k, v in pairs(_private[self].items) do table.insert(items, k) end
-    return items
+    local items = _private[self].items
+    local result = {}
+    for k, v in pairs(items) do table.insert(result, k) end
+    return result
 end
 
 --
@@ -133,10 +140,11 @@ end
 --    Returns true if set contains [all of] the item(s), false otherwise.
 --
 function Set:contains(...)
-    local items = flatten({...})
+    local p = _private[self]
+    local items = _flatten({...})
     local some_found, none_not = false, true
     for i, v in ipairs(items) do
-        if _private[self].items[v] then some_found = true
+        if p.items[v] then some_found = true
         else none_not = false end
     end
     return (some_found and none_not)
@@ -148,9 +156,10 @@ Set.containsAll = Set.contains
 --    Returns true if set contains [any of] the item(s), false otherwise.
 --
 function Set:containsAny(...)
-    local items = flatten({...})
+    local p = _private[self]
+    local items = _flatten({...})
     for i, v in ipairs(items) do
-        if _private[self].items[v] then return true end
+        if p.items[v] then return true end
     end
     return false
 end
@@ -160,11 +169,12 @@ end
 --    Adds the item(s) to the set, then returns the set.
 --
 function Set:add(...)
-    local items = flatten({...})
+    local p = _private[self]
+    local items = _flatten({...})
     for i, v in ipairs(items) do
-        if _private[self].items[v] == nil then
-            _private[self].size = _private[self].size + 1
-            _private[self].items[v] = true
+        if p.items[v] == nil then
+            p.size = p.size + 1
+            p.items[v] = true
         end
     end
     return self
@@ -175,11 +185,12 @@ end
 --    Removes the item(s) from the set, then returns the set.
 --
 function Set:remove(...)
-    local items = flatten({...})
+    local p = _private[self]
+    local items = _flatten({...})
     for i, v in ipairs(items) do
-        if _private[self].items[v] ~= nil then
-            _private[self].size = _private[self].size - 1
-            _private[self].items[v] = nil
+        if p.items[v] ~= nil then
+            p.size = p.size - 1
+            p.items[v] = nil
         end
     end
     return self
@@ -214,21 +225,20 @@ end
 --    Returns the number of elements in the set
 --
 function Set:size()
-
     return _private[self].size
 end
 
---
---  Instance Metamethods
---
-Set.mt = {}
-Set.mt.__index = Set
+------------------------
+--  Instance Metatable
+------------------------
+
+_mt.__index = Set
 
 --
 --  Calling a Set instance with no parameters aliases :items(), and with
 --    parameters aliases :contains(items...)
 --
-function Set.mt:__call(...)
+_mt.__call = function(self, ...)
     if (#{...} > 0) then return self:contains(...)
     else return self:items() end
 end
@@ -238,7 +248,7 @@ end
 --    like a set, or otherwise creates a new set containing all the items in
 --    the first and calls :add(param) on it before returning.
 --
-function Set.mt:__add(param)
+_mt.__add = function (self, param)
     if param.items then
         return self:union(other_set)
     else
@@ -254,7 +264,7 @@ end
 --    the first and if the parameter looks like a set it calls
 --    :remove(param:items()), or otherwise :remove(params) before returning.
 --
-function Set.mt:__sub(param)
+_mt.__sub = function(self, param)
     local result = Set.new()
     if param.items then
         result:add(self:items())
@@ -269,12 +279,12 @@ end
 --
 --  The * operator will attempt to return an intersection.
 --
-Set.mt.__mul = Set.intersect
+_mt.__mul = Set.intersect
 
 --
 --  The equality operator will attempt to function on other sets.
 --
-function Set.mt:__eq(param)
+_mt.__eq = function(self, param)
     if param.items then
         return self:contains(param:items())
     else
@@ -285,7 +295,7 @@ end
 --
 --  Some pretty printing
 --
-function Set.mt:__tostring()
+_mt.__tostring = function(self)
     local items = self:items()
     for i,v in ipairs(items) do
         if(type(v) == "string") then
@@ -297,67 +307,77 @@ function Set.mt:__tostring()
     return 'S{ ' .. table.concat(items, ', ') .. ' }'
 end
 
---
--- Class metatable set to allow constructor without .new()
---
-setmetatable(Set, { __call = function(_, ...) return Set.new(...) end })
+--------------------
+-- Class Metatable
+--------------------
 
---
---
+setmetatable(Set, {
+    __call = function(_, ...)
+        return Set.new(...)
+    end
+})
 
--- create the empty set
-set = Set()
-assert(set:size() == 0)
+---------------
+-- Unit Tests
+---------------
+do
+    -- create the empty set
+    local set = Set()
+    assert(set:size() == 0)
 
--- remove from the empty set
-set:remove("anything")
-assert(set:size() == 0)
+    -- remove from the empty set
+    set:remove("anything")
+    assert(set:size() == 0)
 
--- create a set with arguments
-set = Set("first", "second", "third", "third")
-assert(set:size() == 3)
+    -- create a set with arguments
+    set = Set("first", "second", "third", "third")
+    assert(set:size() == 3)
 
--- create a set from a table
-tset = Set({"first", "second", "third", "third"})
-assert(tset:size() == 3)
+    -- create a set from a table
+    tset = Set({"first", "second", "third", "third"})
+    assert(tset:size() == 3)
 
--- contains
-assert(set:contains("first"))
-assert(set:contains("first", "second"))
-assert(not set:contains("first", "second", "fourth"))
+    -- contains
+    assert(set:contains("first"))
+    assert(set:contains("first", "second"))
+    assert(not set:contains("first", "second", "fourth"))
 
--- contains any
-assert(set:containsAny("first", "second", "fourth"))
+    -- contains any
+    assert(set:containsAny("first", "second", "fourth"))
 
--- union
-new_set = set + "fourth"
+    -- union
+    local new_set = set + "fourth"
 
-assert(new_set:size() == 4)
+    assert(new_set:size() == 4)
 
--- add the same element twice
-set:add("fourth")
-assert(set:size() == 4)
-assert(set == new_set)
+    -- add the same element twice
+    set:add("fourth")
+    assert(set:size() == 4)
+    assert(set == new_set)
 
-set:add("fourth")
-print(set)
-assert(set:size() == 4)
-assert(set == new_set)
+    set:add("fourth")
+    assert(set:size() == 4)
+    assert(set == new_set)
 
--- remove the same element twice
-set:remove("first")
-assert(set:size() == 3)
+    -- remove the same element twice
+    set:remove("first")
+    assert(set:size() == 3)
 
-set:remove("first")
-assert(set:size() == 3)
+    set:remove("first")
+    assert(set:size() == 3)
 
--- intersection
-bob = Set("fourth", "whatever", "grand") * set
-assert(bob:size() == 1)
+    -- intersection
+    bob = Set("fourth", "whatever", "grand") * set
+    assert(bob:size() == 1)
 
--- relative complement
-set = set - bob
-assert(set:size() == 2)
-assert(set:contains("fourth") == false)
+    -- relative complement
+    set = set - bob
+    assert(set:size() == 2)
+    assert(set:contains("fourth") == false)
+end
+
+---------------------
+-- Return the Class
+---------------------
 
 return Set
