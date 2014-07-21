@@ -1,5 +1,5 @@
 local Set = {
-    _VERSION     = 'set.lua 0.3',
+    _VERSION     = 'set.lua 0.3.1',
     _DESCRIPTION = 'Simple Set operations for Lua',
     _URL         = 'https://github.com/nomoon',
     _LONGDESC    = [[
@@ -76,13 +76,13 @@ local Set = {
 --
 --  Stash for private instance variables and metatable
 --
-local _private = setmetatable({}, {__mode = "k"})
-local _imt, _cmt = {}, {}
+local private = setmetatable({}, {__mode = "k"})
+local imt, cmt = {}, {}
 
 --
 --  Helper: Flattens/sanitizes a table into its values.
 --
-local function _flatten(tbl)
+local function flatten(tbl)
     local insert = table.insert
     local result = {}
 
@@ -112,9 +112,9 @@ end
 --
 function Set.new(...)
     local self = {}
-    setmetatable(self, _imt)
+    setmetatable(self, imt)
 
-    _private[self] = {
+    private[self] = {
         items = {},
         size  = 0
     }
@@ -127,9 +127,9 @@ end
 --    Returns a table of all items in the set.
 --
 function Set:items()
-    local items = _private[self].items
+    local pitems = private[self].items
     local result = {}
-    for k, v in pairs(items) do table.insert(result, k) end
+    for k, _ in pairs(pitems) do table.insert(result, k) end
     return result
 end
 
@@ -138,12 +138,11 @@ end
 --    Returns true if set contains [all of] the item(s), false otherwise.
 --
 function Set:contains(...)
-    local p = _private[self]
-    local items = _flatten({...})
+    local pitems = private[self].items
+    local items = flatten({...})
     local some_found, none_not = false, true
-    for i, v in ipairs(items) do
-        if p.items[v] then some_found = true
-        else none_not = false end
+    for _, v in ipairs(items) do
+        if pitems[v] then some_found = true else none_not = false end
     end
     return (some_found and none_not)
 end
@@ -154,10 +153,10 @@ Set.containsAll = Set.contains
 --    Returns true if set contains [any of] the item(s), false otherwise.
 --
 function Set:containsAny(...)
-    local p = _private[self]
-    local items = _flatten({...})
-    for i, v in ipairs(items) do
-        if p.items[v] then return true end
+    local pitems = private[self].items
+    local items = flatten({...})
+    for _, v in ipairs(items) do
+        if pitems[v] then return true end
     end
     return false
 end
@@ -167,9 +166,9 @@ end
 --    Adds the item(s) to the set, then returns the set.
 --
 function Set:add(...)
-    local p = _private[self]
-    local items = _flatten({...})
-    for i, v in ipairs(items) do
+    local p = private[self]
+    local items = flatten({...})
+    for _, v in ipairs(items) do
         if p.items[v] == nil then
             p.size = p.size + 1
             p.items[v] = true
@@ -183,9 +182,9 @@ end
 --    Removes the item(s) from the set, then returns the set.
 --
 function Set:remove(...)
-    local p = _private[self]
-    local items = _flatten({...})
-    for i, v in ipairs(items) do
+    local p = private[self]
+    local items = flatten({...})
+    for _, v in ipairs(items) do
         if p.items[v] ~= nil then
             p.size = p.size - 1
             p.items[v] = nil
@@ -201,8 +200,7 @@ end
 --    to the contents of the first set.
 --
 function Set:union(second)
-    local result = Set.new()
-    result:add(self:items())
+    local result = Set.new(self:items())
     if(getmetatable(self) == getmetatable(second)) then
         result:add(second:items())
     else
@@ -218,8 +216,7 @@ end
 --    from the data of the first set.
 --
 function Set:complement(second)
-    local result = Set.new()
-    result:add(self:items())
+    local result = Set.new(self:items())
     if(getmetatable(self) == getmetatable(second)) then
         result:remove(second:items())
     else
@@ -236,8 +233,8 @@ end
 function Set:intersect(second)
     local result = Set.new()
     if(getmetatable(self) == getmetatable(second)) then
-        local first_items = self:items()
-        for i,v in ipairs(first_items) do
+        local items = self:items()
+        for _,v in ipairs(items) do
             if second:containsAny(v) then result:add(v) end
         end
     end
@@ -249,7 +246,7 @@ end
 --    Returns the number of elements in the set
 --
 function Set:size()
-    return _private[self].size
+    return private[self].size
 end
 
 --
@@ -263,22 +260,23 @@ end
 --------------------
 -- Class Metatable
 --------------------
-_cmt.__index = Set
-_cmt.__metatable = Set._VERSION
-_cmt.__call = function(_, ...) return Set.new(...) end
-setmetatable(Set, _cmt)
+cmt.__index = Set
+cmt.__metatable = Set._VERSION
+cmt.__call = function(_, ...) return Set.new(...) end
+setmetatable(Set, cmt)
 
 ------------------------
 --  Instance Metatable
 ------------------------
-_imt.__index = _cmt.__index
-_imt.__metatable = _cmt.__metatable
+imt.__index = cmt.__index
+imt.__metatable = cmt.__metatable
+
 
 --
 --  Calling a Set instance with no parameters aliases :items(), and with
 --    parameters aliases :contains(items...)
 --
-_imt.__call = function(self, ...)
+imt.__call = function(self, ...)
     if (#{...} > 0) then return self:contains(...)
     else return self:items() end
 end
@@ -286,27 +284,27 @@ end
 --
 --  Using the + operator will attempt to return a union.
 --
-_imt.__add = Set.union
+imt.__add = Set.union
 
 --
 --  Using the - operator will attempt to return a complement.
 --
-_imt.__sub = Set.complement
+imt.__sub = Set.complement
 
 --
 --  The * operator will attempt to return an intersection.
 --
-_imt.__mul = Set.intersect
+imt.__mul = Set.intersect
 
 --
 --  The # operator will return the size.
 --
-_imt.__len = Set.size
+imt.__len = Set.size
 
 --
 --  The equality operator will attempt to function on other sets.
 --
-_imt.__eq = function(self, param)
+imt.__eq = function(self, param)
     if getmetatable(self) == getmetatable(param) then
         return self:contains(param:items())
     else
@@ -317,7 +315,7 @@ end
 --
 --  Some pretty printing
 --
-_imt.__tostring = function(self)
+imt.__tostring = function(self)
     local items = self:items()
     for i,v in ipairs(items) do
         if(type(v) == "string") then
@@ -359,7 +357,6 @@ do
 
     -- union
     local new_set = set + "fourth"
-
     assert(new_set:size() == 4)
 
     -- add the same element twice
@@ -374,9 +371,11 @@ do
     -- remove the same element twice
     set:remove("first")
     assert(set:size() == 3)
+    assert(set ~= new_set)
 
     set:remove("first")
     assert(set:size() == 3)
+    assert(set ~= new_set)
 
     -- intersection
     local bob = Set("fourth", "whatever", "grand") * set
@@ -385,7 +384,7 @@ do
     -- relative complement
     local lset = set - bob
     assert(lset:size() == 2)
-    assert(lset:contains("fourth") == false)
+    assert(not lset:contains("fourth"))
 end
 
 ---------------------
