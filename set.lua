@@ -77,7 +77,7 @@ local Set = {
 --  Stash for private instance variables and metatable
 --
 local private = setmetatable({}, {__mode = "k"})
-local imt, cmt = {}, {}
+local cmt, imt = {}, {} -- Defined below public methods
 
 --
 --  Helper: Flattens/sanitizes a table into its values.
@@ -87,7 +87,7 @@ local function flatten(tbl)
     local result = {}
 
     local function rFlatten(tbl)
-        for k, v in pairs(tbl) do
+        for _, v in pairs(tbl) do
             if (type(v) == "table") then
                 rFlatten(v)
             elseif (v == nil or v ~= v or v == math.huge or v == -math.huge) then
@@ -111,8 +111,7 @@ end
 --  Set.new(items...) or Set(items...)
 --
 function Set.new(...)
-    local self = {}
-    setmetatable(self, imt)
+    local self = setmetatable({}, imt)
 
     private[self] = {
         items = {},
@@ -127,9 +126,10 @@ end
 --    Returns a table of all items in the set.
 --
 function Set:items()
+    local insert = table.insert
     local pitems = private[self].items
     local result = {}
-    for k, _ in pairs(pitems) do table.insert(result, k) end
+    for k in pairs(pitems) do insert(result, k) end
     return result
 end
 
@@ -169,7 +169,7 @@ function Set:add(...)
     local p = private[self]
     local items = flatten({...})
     for _, v in ipairs(items) do
-        if p.items[v] == nil then
+        if(p.items[v] == nil) then
             p.size = p.size + 1
             p.items[v] = true
         end
@@ -185,7 +185,7 @@ function Set:remove(...)
     local p = private[self]
     local items = flatten({...})
     for _, v in ipairs(items) do
-        if p.items[v] ~= nil then
+        if(p.items[v] ~= nil) then
             p.size = p.size - 1
             p.items[v] = nil
         end
@@ -260,17 +260,18 @@ end
 --------------------
 -- Class Metatable
 --------------------
+
 cmt.__index = Set
-cmt.__metatable = Set._VERSION
+cmt.__metatable = Set
 cmt.__call = function(_, ...) return Set.new(...) end
 setmetatable(Set, cmt)
 
 ------------------------
 --  Instance Metatable
 ------------------------
-imt.__index = cmt.__index
-imt.__metatable = cmt.__metatable
 
+imt.__index = Set
+imt.__metatable = Set
 
 --
 --  Calling a Set instance with no parameters aliases :items(), and with
@@ -280,26 +281,6 @@ imt.__call = function(self, ...)
     if (#{...} > 0) then return self:contains(...)
     else return self:items() end
 end
-
---
---  Using the + operator will attempt to return a union.
---
-imt.__add = Set.union
-
---
---  Using the - operator will attempt to return a complement.
---
-imt.__sub = Set.complement
-
---
---  The * operator will attempt to return an intersection.
---
-imt.__mul = Set.intersect
-
---
---  The # operator will return the size.
---
-imt.__len = Set.size
 
 --
 --  The equality operator will attempt to function on other sets.
@@ -326,6 +307,14 @@ imt.__tostring = function(self)
 
     return 'S{' .. table.concat(items, ', ') .. '}'
 end
+
+--
+--  Operator shorthand metamethods for various operations
+--
+imt.__add = Set.union
+imt.__sub = Set.complement
+imt.__mul = Set.intersect
+imt.__len = Set.size
 
 ---------------
 -- Unit Tests
