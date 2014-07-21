@@ -1,5 +1,5 @@
 local Set = {
-    _VERSION     = 'set.lua 0.1',
+    _VERSION     = 'set.lua 0.2',
     _DESCRIPTION = 'Simple Set operations for Lua',
     _URL         = 'https://github.com/nomoon',
     _LONGDESC    = [[
@@ -197,25 +197,51 @@ function Set:remove(...)
 end
 
 --
---  Set:union(other_set)
+--  Set:union(second)
 --    Returns a new set with all the values of both sets.
+--    If the parameter is not a set, will return new set with parameter added
+--    to the contents of the first set.
 --
-function Set:union(other)
+function Set:union(second)
     local result = Set.new()
     result:add(self:items())
-    result:add(other:items())
+    if(getmetatable(self) == getmetatable(second)) then
+        result:add(second:items())
+    else
+        result:add(second)
+    end
     return result
 end
 
 --
---  Set:intersect(other_set)
---    Returns a new set with only the values shared between both sets.
+--  Set:complement(second)
+--    Returns a new set with values from the second set removed from the first.
+--    If the parameter is not a set, will return new set with parameter removed
+--    from the data of the first set.
 --
-function Set:intersect(other)
+function Set:complement(second)
     local result = Set.new()
-    local self_items = self:items()
-    for i,v in ipairs(self_items) do
-        if other:containsAny(v) then result:add(v) end
+    result:add(self:items())
+    if(getmetatable(self) == getmetatable(second)) then
+        result:remove(second:items())
+    else
+        result:remove(second)
+    end
+    return result
+end
+
+--
+--  Set:intersect(second)
+--    Returns a new set with only the values shared between both sets.
+--    If the parameter is not a set, will return an empty set.
+--
+function Set:intersect(second)
+    local result = Set.new()
+    if(getmetatable(self) == getmetatable(second)) then
+        local first_items = self:items()
+        for i,v in ipairs(first_items) do
+            if second:containsAny(v) then result:add(v) end
+        end
     end
     return result
 end
@@ -228,11 +254,20 @@ function Set:size()
     return _private[self].size
 end
 
+--
+--  Set:class()
+--    Returns the class.
+--
+function Set:class()
+    return Set
+end
+
 ------------------------
 --  Instance Metatable
 ------------------------
 
 _mt.__index = Set
+_mt.__metatable = Set._VERSION
 
 --
 --  Calling a Set instance with no parameters aliases :items(), and with
@@ -244,37 +279,14 @@ _mt.__call = function(self, ...)
 end
 
 --
---  Using the + operator calls :union(param) if the parameter looks
---    like a set, or otherwise creates a new set containing all the items in
---    the first and calls :add(param) on it before returning.
+--  Using the + operator will attempt to return a union.
 --
-_mt.__add = function (self, param)
-    if param.items then
-        return self:union(other_set)
-    else
-        local result = Set.new()
-        result:add(self:items())
-        result:add(param)
-        return result
-    end
-end
+_mt.__add = Set.union
 
 --
---  Using the - operator creates a new set containing all the items in
---    the first and if the parameter looks like a set it calls
---    :remove(param:items()), or otherwise :remove(params) before returning.
+--  Using the - operator will attempt to return a complement.
 --
-_mt.__sub = function(self, param)
-    local result = Set.new()
-    if param.items then
-        result:add(self:items())
-        result:remove(param:items())
-    else
-        result:add(self:items())
-        result:remove(param)
-    end
-    return result
-end
+_mt.__sub = Set.complement
 
 --
 --  The * operator will attempt to return an intersection.
@@ -282,10 +294,15 @@ end
 _mt.__mul = Set.intersect
 
 --
+--  The # operator will return the size.
+--
+_mt.__len = Set.size
+
+--
 --  The equality operator will attempt to function on other sets.
 --
 _mt.__eq = function(self, param)
-    if param.items then
+    if getmetatable(self) == getmetatable(param) then
         return self:contains(param:items())
     else
         return false
