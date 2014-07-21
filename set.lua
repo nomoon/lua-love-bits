@@ -303,5 +303,61 @@ end
 setmetatable(Set, { __call = function(_, ...) return Set.new(...) end })
 
 --
+--
+
+-- create the empty set
+set = Set()
+assert(set:size() == 0)
+
+-- remove from the empty set
+set:remove("anything")
+assert(set:size() == 0)
+
+-- create a set with arguments
+set = Set("first", "second", "third", "third")
+assert(set:size() == 3)
+
+-- create a set from a table
+tset = Set({"first", "second", "third", "third"})
+assert(tset:size() == 3)
+
+-- contains
+assert(set:contains("first"))
+assert(set:contains("first", "second"))
+assert(not set:contains("first", "second", "fourth"))
+
+-- contains any
+assert(set:containsAny("first", "second", "fourth"))
+
+-- union
+new_set = set + "fourth"
+
+assert(new_set:size() == 4)
+
+-- add the same element twice
+set:add("fourth")
+assert(set:size() == 4)
+assert(set == new_set)
+
+set:add("fourth")
+print(set)
+assert(set:size() == 4)
+assert(set == new_set)
+
+-- remove the same element twice
+set:remove("first")
+assert(set:size() == 3)
+
+set:remove("first")
+assert(set:size() == 3)
+
+-- intersection
+bob = Set("fourth", "whatever", "grand") * set
+assert(bob:size() == 1)
+
+-- relative complement
+set = set - bob
+assert(set:size() == 2)
+assert(set:contains("fourth") == false)
 
 return Set
