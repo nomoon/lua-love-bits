@@ -162,7 +162,7 @@ function Set:add(...)
     for i, v in ipairs(items) do
         _private[self].items[v] = true
     end
-    return self:items()
+    return self
 end
 
 --
@@ -174,7 +174,7 @@ function Set:remove(...)
     for i, v in ipairs(items) do
         _private[self].items[v] = nil
     end
-    return self:items()
+    return self
 end
 
 --
