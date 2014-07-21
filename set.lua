@@ -111,7 +111,9 @@ function Set.new(...)
 
     _private[self] = {}
     _private[self].items = {}
-    for _, l in ipairs(list) do _private[self].items[l] = true end
+    _private[self].size = 0
+
+    self:add(list)
 
     return self
 end
@@ -160,7 +162,10 @@ end
 function Set:add(...)
     local items = flatten({...})
     for i, v in ipairs(items) do
-        _private[self].items[v] = true
+        if _private[self].items[v] == nil then
+            _private[self].size = _private[self].size + 1
+            _private[self].items[v] = true
+        end
     end
     return self
 end
@@ -172,7 +177,10 @@ end
 function Set:remove(...)
     local items = flatten({...})
     for i, v in ipairs(items) do
-        _private[self].items[v] = nil
+        if _private[self].items[v] ~= nil then
+            _private[self].size = _private[self].size - 1
+            _private[self].items[v] = nil
+        end
     end
     return self
 end
@@ -199,6 +207,15 @@ function Set:intersect(other)
         if other:containsAny(v) then result:add(v) end
     end
     return result
+end
+
+--
+--  Set:size()
+--    Returns the number of elements in the set
+--
+function Set:size()
+
+    return _private[self].size
 end
 
 --
