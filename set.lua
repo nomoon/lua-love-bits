@@ -1,5 +1,5 @@
 local Set = {
-    _VERSION     = 'set.lua 0.2',
+    _VERSION     = 'set.lua 0.3',
     _DESCRIPTION = 'Simple Set operations for Lua',
     _URL         = 'https://github.com/nomoon',
     _LONGDESC    = [[
