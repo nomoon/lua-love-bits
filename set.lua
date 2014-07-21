@@ -346,7 +346,7 @@ do
     assert(set:size() == 3)
 
     -- create a set from a table
-    tset = Set({"first", "second", "third", "third"})
+    local tset = Set({"first", "second", "third", "third"})
     assert(tset:size() == 3)
 
     -- contains
@@ -379,13 +379,13 @@ do
     assert(set:size() == 3)
 
     -- intersection
-    bob = Set("fourth", "whatever", "grand") * set
+    local bob = Set("fourth", "whatever", "grand") * set
     assert(bob:size() == 1)
 
     -- relative complement
-    set = set - bob
-    assert(set:size() == 2)
-    assert(set:contains("fourth") == false)
+    local lset = set - bob
+    assert(lset:size() == 2)
+    assert(lset:contains("fourth") == false)
 end
 
 ---------------------
