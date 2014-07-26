@@ -1,21 +1,21 @@
 local Class = {
-    _VERSION     = '0.1.6',
+    _VERSION     = '0.1.7',
     _DESCRIPTION = 'Very simple class definition helper',
     _URL         = 'https://github.com/nomoon',
     _LONGDESC    = [[
 
-        Simply define a class with the syntax: `MyClass = Class(classname)`.
+        Simply define a class with the syntax:
+            `MyClass = Class(classname, [existing_table])`
         Classname must start with a letter and consist of letters and
-        numbers with no spaces.
+        numbers with no spaces. If 'existing_table' is provided, class features
+        will be added to that table.
+        The class constructor returns `Class, Metatable`.
 
-        Then define a function `MyClass:new(params, [existing_table])`.
-        If 'existing_table' is provided, class features will be added to that
-        table. The class constructor returns `Class, Metatable`.
-
-        When you call `MyClass(params)`, an instance is created and
-        `MyClass.new(self, params)` is called with the new instance.
-        You need not return anything from .new(), as the constructor will
-        return the object once the function is finished.
+        Then, define a function `MyClass:new(params)`. When you call
+        `MyClass(params)` an instance is created and `MyClass.new(self, params)`
+        is called with the new instance. You need not return anything from
+        .new(), as the constructor will return the object once the function is
+        finished.
 
         Complete Example:
             local Class = require('class')
