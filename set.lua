@@ -1,5 +1,5 @@
 local Set = {
-    _VERSION     = 'set.lua 0.3.1',
+    _VERSION     = 'set.lua 0.3.2',
     _DESCRIPTION = 'Simple Set operations for Lua',
     _URL         = 'https://github.com/nomoon',
     _LONGDESC    = [[
@@ -69,6 +69,12 @@ local Set = {
     ]]
 }
 
+-- Import reused functions into local scope!
+local insert = table.insert
+local concat = table.concat
+local inf = math.huge
+local neg_inf = -math.huge
+
 -------------------
 --  Private Stuff
 -------------------
@@ -82,15 +88,14 @@ local cmt, imt = {}, {} -- Defined below public methods
 --
 --  Helper: Flattens/sanitizes a table into its values.
 --
-local function flatten(tbl)
-    local insert = table.insert
+local function flatten(...)
     local result = {}
 
     local function rFlatten(tbl)
         for _, v in pairs(tbl) do
             if (type(v) == "table") then
                 rFlatten(v)
-            elseif (v == nil or v ~= v or v == math.huge or v == -math.huge) then
+            elseif (v == nil or v ~= v or v == inf or v == neginf) then
                 -- no-op, illegal table keys so can't go in set
             else
                 insert(result, v)
@@ -98,7 +103,7 @@ local function flatten(tbl)
         end
     end
 
-    rFlatten(tbl)
+    rFlatten({...})
     return result
 end
 
@@ -126,7 +131,6 @@ end
 --    Returns a table of all items in the set.
 --
 function Set:items()
-    local insert = table.insert
     local pitems = private[self].items
     local result = {}
     for k in pairs(pitems) do insert(result, k) end
@@ -139,7 +143,7 @@ end
 --
 function Set:contains(...)
     local pitems = private[self].items
-    local items = flatten({...})
+    local items = flatten(...)
     local some_found, none_not = false, true
     for _, v in ipairs(items) do
         if pitems[v] then some_found = true else none_not = false end
@@ -154,7 +158,7 @@ Set.containsAll = Set.contains
 --
 function Set:containsAny(...)
     local pitems = private[self].items
-    local items = flatten({...})
+    local items = flatten(...)
     for _, v in ipairs(items) do
         if pitems[v] then return true end
     end
@@ -167,7 +171,7 @@ end
 --
 function Set:add(...)
     local p = private[self]
-    local items = flatten({...})
+    local items = flatten(...)
     for _, v in ipairs(items) do
         if(p.items[v] == nil) then
             p.size = p.size + 1
@@ -183,11 +187,12 @@ end
 --
 function Set:remove(...)
     local p = private[self]
-    local items = flatten({...})
+    local pitems = p.items
+    local items = flatten(...)
     for _, v in ipairs(items) do
-        if(p.items[v] ~= nil) then
+        if(pitems[v] ~= nil) then
             p.size = p.size - 1
-            p.items[v] = nil
+            pitems[v] = nil
         end
     end
     return self
@@ -262,7 +267,6 @@ end
 --------------------
 
 cmt.__index = Set
-cmt.__metatable = Set
 cmt.__call = function(_, ...) return Set.new(...) end
 setmetatable(Set, cmt)
 
@@ -271,14 +275,13 @@ setmetatable(Set, cmt)
 ------------------------
 
 imt.__index = Set
-imt.__metatable = Set
 
 --
 --  Calling a Set instance with no parameters aliases :items(), and with
 --    parameters aliases :contains(items...)
 --
-imt.__call = function(self, ...)
-    if (#{...} > 0) then return self:contains(...)
+imt.__call = function(self, param, ...)
+    if param then return self:contains(param, ...)
     else return self:items() end
 end
 
@@ -286,7 +289,7 @@ end
 --  The equality operator will attempt to function on other sets.
 --
 imt.__eq = function(self, param)
-    if getmetatable(self) == getmetatable(param) then
+    if(getmetatable(self) == getmetatable(param))then
         return self:contains(param:items())
     else
         return false
@@ -301,11 +304,11 @@ imt.__tostring = function(self)
     for i,v in ipairs(items) do
         if(type(v) == "string") then
             v = v:gsub('\\', '\\\\'):gsub('"', '\\"')
-            items[i] = table.concat({'"',v,'"'})
+            items[i] = concat({'"',v,'"'})
         end
     end
 
-    return 'S{' .. table.concat(items, ', ') .. '}'
+    return 'S{' .. concat(items, ', ') .. '}'
 end
 
 --
@@ -347,6 +350,7 @@ do
     -- union
     local new_set = set + "fourth"
     assert(new_set:size() == 4)
+    assert(new_set:contains("fourth"))
 
     -- add the same element twice
     set:add("fourth")
