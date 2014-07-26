@@ -1,5 +1,5 @@
 local Set = {
-    _VERSION     = 'set.lua 0.3.2',
+    _VERSION     = 'set.lua 0.3.3',
     _DESCRIPTION = 'Simple Set operations for Lua',
     _URL         = 'https://github.com/nomoon',
     _LONGDESC    = [[
@@ -80,10 +80,16 @@ local neg_inf = -math.huge
 -------------------
 
 --
---  Stash for private instance variables and metatable
+--  Stash for private instance variables
 --
 local private = setmetatable({}, {__mode = "k"})
-local cmt, imt = {}, {} -- Defined below public methods
+
+--
+--  Class and Instance metatables
+--
+local cmt = {}
+local imt = setmetatable({}, cmt)
+setmetatable(Set, cmt)
 
 --
 --  Helper: Flattens/sanitizes a table into its values.
@@ -95,7 +101,7 @@ local function flatten(...)
         for _, v in pairs(tbl) do
             if (type(v) == "table") then
                 rFlatten(v)
-            elseif (v == nil or v ~= v or v == inf or v == neginf) then
+            elseif (v == nil or v ~= v or v == inf or v == neg_inf) then
                 -- no-op, illegal table keys so can't go in set
             else
                 insert(result, v)
@@ -127,6 +133,14 @@ function Set.new(...)
 end
 
 --
+--  Type checking:
+--  Set.isaSet(object) returns true if object is an instance of set.
+--
+function Set.isaSet(obj)
+    return (getmetatable(obj) == imt)
+end
+
+--
 --  Set:items() or Set()
 --    Returns a table of all items in the set.
 --
@@ -144,11 +158,11 @@ end
 function Set:contains(...)
     local pitems = private[self].items
     local items = flatten(...)
-    local some_found, none_not = false, true
+    if(#items == 0) then return nil end
     for _, v in ipairs(items) do
-        if pitems[v] then some_found = true else none_not = false end
+        if not pitems[v] then return false end
     end
-    return (some_found and none_not)
+    return true
 end
 Set.containsAll = Set.contains
 
@@ -159,6 +173,7 @@ Set.containsAll = Set.contains
 function Set:containsAny(...)
     local pitems = private[self].items
     local items = flatten(...)
+    if(#items == 0) then return nil end
     for _, v in ipairs(items) do
         if pitems[v] then return true end
     end
@@ -206,7 +221,7 @@ end
 --
 function Set:union(second)
     local result = Set.new(self:items())
-    if(getmetatable(self) == getmetatable(second)) then
+    if Set.isaSet(second) then
         result:add(second:items())
     else
         result:add(second)
@@ -222,7 +237,7 @@ end
 --
 function Set:complement(second)
     local result = Set.new(self:items())
-    if(getmetatable(self) == getmetatable(second)) then
+    if Set.isaSet(second) then
         result:remove(second:items())
     else
         result:remove(second)
@@ -237,7 +252,7 @@ end
 --
 function Set:intersect(second)
     local result = Set.new()
-    if(getmetatable(self) == getmetatable(second)) then
+    if Set.isaSet(second) then
         local items = self:items()
         for _,v in ipairs(items) do
             if second:containsAny(v) then result:add(v) end
@@ -266,9 +281,7 @@ end
 -- Class Metatable
 --------------------
 
-cmt.__index = Set
 cmt.__call = function(_, ...) return Set.new(...) end
-setmetatable(Set, cmt)
 
 ------------------------
 --  Instance Metatable
@@ -289,7 +302,7 @@ end
 --  The equality operator will attempt to function on other sets.
 --
 imt.__eq = function(self, param)
-    if(getmetatable(self) == getmetatable(param))then
+    if Set.isaSet(param) then
         return self:contains(param:items())
     else
         return false
@@ -327,6 +340,10 @@ do
     local set = Set()
     assert(set:size() == 0)
 
+    -- check type
+    assert(Set.isaSet(set))
+    assert(not Set.isaSet(0))
+
     -- remove from the empty set
     set:remove("anything")
     assert(set:size() == 0)
@@ -340,19 +357,27 @@ do
     assert(tset:size() == 3)
 
     -- contains
+    assert(set:contains() == nil) -- Contains nothing? Does not compute!
     assert(set:contains("first"))
     assert(set:contains("first", "second"))
     assert(not set:contains("first", "second", "fourth"))
 
     -- contains any
+    assert(set:containsAny() == nil)
     assert(set:containsAny("first", "second", "fourth"))
+    assert(not set:containsAny("fifth"))
 
     -- union
     local new_set = set + "fourth"
     assert(new_set:size() == 4)
     assert(new_set:contains("fourth"))
 
-    -- add the same element twice
+    -- test easy accessors
+    assert(#new_set() == 4)
+    assert(new_set("fourth"))
+    assert(not new_set("fifth"))
+
+    -- add the same element twice more
     set:add("fourth")
     assert(set:size() == 4)
     assert(set == new_set)
@@ -371,7 +396,7 @@ do
     assert(set ~= new_set)
 
     -- intersection
-    local bob = Set("fourth", "whatever", "grand") * set
+    local bob = Set.new("fourth", "whatever", "grand") * set
     assert(bob:size() == 1)
 
     -- relative complement
