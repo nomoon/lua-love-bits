@@ -1,5 +1,5 @@
 local Set = {
-    _VERSION     = 'set.lua 0.3.3',
+    _VERSION     = 'set.lua 0.3.4',
     _DESCRIPTION = 'Simple Set operations for Lua',
     _URL         = 'https://github.com/nomoon',
     _LONGDESC    = [[
@@ -101,7 +101,7 @@ local function flatten(...)
         for _, v in pairs(tbl) do
             if (type(v) == "table") then
                 rFlatten(v)
-            elseif (v == nil or v ~= v or v == inf or v == neg_inf) then
+            elseif (v ~= v or v == inf or v == neg_inf) then
                 -- no-op, illegal table keys so can't go in set
             else
                 insert(result, v)
@@ -293,9 +293,12 @@ imt.__index = Set
 --  Calling a Set instance with no parameters aliases :items(), and with
 --    parameters aliases :contains(items...)
 --
-imt.__call = function(self, param, ...)
-    if param then return self:contains(param, ...)
-    else return self:items() end
+imt.__call = function(self, ...)
+    if(select('#', ...) > 0) then
+        return self:contains(...)
+    else
+        return self:items()
+    end
 end
 
 --
