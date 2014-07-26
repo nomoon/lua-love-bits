@@ -1,5 +1,5 @@
 local Set = {
-    _VERSION     = 'set.lua 0.3.4',
+    _VERSION     = 'set.lua 0.3.5',
     _DESCRIPTION = 'Simple Set operations for Lua',
     _URL         = 'https://github.com/nomoon',
     _LONGDESC    = [[
@@ -333,7 +333,28 @@ end
 imt.__add = Set.union
 imt.__sub = Set.complement
 imt.__mul = Set.intersect
+
+--
+--  Lua 5.2+ #Set operator for table
+--
 imt.__len = Set.size
+
+--
+-- Lua 5.2+ Iterating over a Set using pairs or ipairs (returns #, value)
+--
+imt.__ipairs = function(self)
+    local i = 0
+    local pitems = private[self].items
+    local n = #pitems
+    return function()
+        i = i + 1
+        if(i <= n) then
+            return i, pitems[i]
+        end
+    end
+end
+
+imt.__pairs = imt.__ipairs
 
 ---------------
 -- Unit Tests
