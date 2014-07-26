@@ -1,28 +1,28 @@
 local Set = {
-    _VERSION     = 'set.lua 0.3.5',
+    _VERSION     = 'set.lua 0.4',
     _DESCRIPTION = 'Simple Set operations for Lua',
     _URL         = 'https://github.com/nomoon',
     _LONGDESC    = [[
         To create a set:
-            Set(items...) or Set.new(items...)
+            Set(items...)
 
         To modify a set:
             Set:add(items...) or Set:remove(items...)
 
         To retrieve the set's contents:
-            Set() or Set:items()
+            set() or set:items()
 
         To test whether thing(s) is/are in a set:
-            Set(items...) or Set:contains(items...) or Set:containsAll(items...)
+            set(items...) or set:contains(items...) or set:containsAll(items...)
 
         To test whether some thing(s) is/are in a set:
-            Set:containsAny(items...)
+            set:containsAny(items...)
 
         To compute the union of a set (returns new set):
-            Set:union(other_set) or Set + other_set
+            set:union(other_set) or set + other_set
 
         To compute the intersection of a set (returns new set):
-            Set:intersect(other_set) or Set * other_set
+            set:intersect(other_set) or set * other_set
 
         The + and - operators may also be used to add items to a set, but in
          this case a new set will be created and returned.
@@ -75,21 +75,22 @@ local concat = table.concat
 local inf = math.huge
 local neg_inf = -math.huge
 
+-- Using the Class library
+local Class = require('class')
+
 -------------------
 --  Private Stuff
 -------------------
 
 --
---  Stash for private instance variables
+--  Class-ify Set table, get metatable (filled below)
 --
-local private = setmetatable({}, {__mode = "k"})
+local _, metatable = Class('Set', Set)
 
 --
---  Class and Instance metatables
+--  Stash for private instance variables
 --
-local cmt = {}
-local imt = setmetatable({}, cmt)
-setmetatable(Set, cmt)
+local private = Class.initPrivate()
 
 --
 --  Helper: Flattens/sanitizes a table into its values.
@@ -119,25 +120,16 @@ end
 
 --
 --  Class constructor:
---  Set.new(items...) or Set(items...)
+--  Set(items...)
 --
-function Set.new(...)
-    local self = setmetatable({}, imt)
+function Set:new(...)
 
     private[self] = {
         items = {},
         size  = 0
     }
 
-    return self:add(...)
-end
-
---
---  Type checking:
---  Set.isaSet(object) returns true if object is an instance of set.
---
-function Set.isaSet(obj)
-    return (getmetatable(obj) == imt)
+    self:add(...)
 end
 
 --
@@ -220,8 +212,8 @@ end
 --    to the contents of the first set.
 --
 function Set:union(second)
-    local result = Set.new(self:items())
-    if Set.isaSet(second) then
+    local result = Set(self:items())
+    if Set.isInstance(second) then
         result:add(second:items())
     else
         result:add(second)
@@ -236,8 +228,8 @@ end
 --    from the data of the first set.
 --
 function Set:complement(second)
-    local result = Set.new(self:items())
-    if Set.isaSet(second) then
+    local result = Set(self:items())
+    if Set.isInstance(second) then
         result:remove(second:items())
     else
         result:remove(second)
@@ -251,8 +243,8 @@ end
 --    If the parameter is not a set, will return an empty set.
 --
 function Set:intersect(second)
-    local result = Set.new()
-    if Set.isaSet(second) then
+    local result = Set()
+    if Set.isInstance(second) then
         local items = self:items()
         for _,v in ipairs(items) do
             if second:containsAny(v) then result:add(v) end
@@ -277,23 +269,15 @@ function Set:class()
     return Set
 end
 
---------------------
--- Class Metatable
---------------------
-
-cmt.__call = function(_, ...) return Set.new(...) end
-
 ------------------------
 --  Instance Metatable
 ------------------------
-
-imt.__index = Set
 
 --
 --  Calling a Set instance with no parameters aliases :items(), and with
 --    parameters aliases :contains(items...)
 --
-imt.__call = function(self, ...)
+function metatable:__call(...)
     if(select('#', ...) > 0) then
         return self:contains(...)
     else
@@ -304,8 +288,8 @@ end
 --
 --  The equality operator will attempt to function on other sets.
 --
-imt.__eq = function(self, param)
-    if Set.isaSet(param) then
+function metatable:__eq(param)
+    if Set.isInstance(param) then
         return self:contains(param:items())
     else
         return false
@@ -315,7 +299,7 @@ end
 --
 --  Some pretty printing
 --
-imt.__tostring = function(self)
+function metatable:__tostring()
     local items = self:items()
     for i,v in ipairs(items) do
         if(type(v) == "string") then
@@ -330,19 +314,19 @@ end
 --
 --  Operator shorthand metamethods for various operations
 --
-imt.__add = Set.union
-imt.__sub = Set.complement
-imt.__mul = Set.intersect
+metatable.__add = Set.union
+metatable.__sub = Set.complement
+metatable.__mul = Set.intersect
 
 --
 --  Lua 5.2+ #Set operator for table
 --
-imt.__len = Set.size
+metatable.__len = Set.size
 
 --
 -- Lua 5.2+ Iterating over a Set using pairs or ipairs (returns #, value)
 --
-imt.__ipairs = function(self)
+function metatable:__ipairs()
     local i = 0
     local pitems = private[self].items
     local n = #pitems
@@ -354,7 +338,7 @@ imt.__ipairs = function(self)
     end
 end
 
-imt.__pairs = imt.__ipairs
+metatable.__pairs = metatable.__ipairs
 
 ---------------
 -- Unit Tests
@@ -365,8 +349,8 @@ do
     assert(set:size() == 0)
 
     -- check type
-    assert(Set.isaSet(set))
-    assert(not Set.isaSet(0))
+    assert(Set.isInstance(set))
+    assert(not Set.isInstance(0))
 
     -- remove from the empty set
     set:remove("anything")
@@ -420,7 +404,7 @@ do
     assert(set ~= new_set)
 
     -- intersection
-    local bob = Set.new("fourth", "whatever", "grand") * set
+    local bob = Set("fourth", "whatever", "grand") * set
     assert(bob:size() == 1)
 
     -- relative complement
