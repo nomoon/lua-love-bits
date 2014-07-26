@@ -1,5 +1,5 @@
 local Class = {
-    _VERSION     = '0.1.5',
+    _VERSION     = '0.1.6',
     _DESCRIPTION = 'Very simple class definition helper',
     _URL         = 'https://github.com/nomoon',
     _LONGDESC    = [[
@@ -71,9 +71,9 @@ setmetatable(Class, {__call = function(_, name, existing_table)
     -- Define the metatable for instances of the class.
     local metatable = {__index = base_class}
 
-    base_class['new'] = function() end
-    base_class['className'] = function() return name end
-    base_class['getMetatable'] = function() return metatable end
+    base_class.new = function() end
+    base_class.className = function() return name end
+    base_class.getMetatable = function() return metatable end
 
     -- Define a basic type checker
     function base_class.isInstance(obj)
