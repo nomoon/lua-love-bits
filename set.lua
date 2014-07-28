@@ -1,5 +1,5 @@
 local Set = {
-    _VERSION     = 'set.lua 0.4',
+    _VERSION     = 'set.lua 0.5',
     _DESCRIPTION = 'Simple Set operations for Lua',
     _URL         = 'https://github.com/nomoon',
     _LONGDESC    = [[
@@ -88,9 +88,9 @@ local Class = require('class')
 local _, metatable = Class('Set', Set)
 
 --
---  Stash for private instance variables
+--  Set private class variables
 --
-local private = Class.initPrivate()
+Set:private({ next_id = 1 })
 
 --
 --  Helper: Flattens/sanitizes a table into its values.
@@ -123,11 +123,13 @@ end
 --  Set(items...)
 --
 function Set:new(...)
-
-    private[self] = {
+    self:private({
+        id = Set:private().next_id,
         items = {},
         size  = 0
-    }
+    })
+
+    Set:private().next_id = Set:private().next_id + 1
 
     self:add(...)
 end
@@ -137,7 +139,7 @@ end
 --    Returns a table of all items in the set.
 --
 function Set:items()
-    local pitems = private[self].items
+    local pitems = self:private().items
     local result = {}
     for k in pairs(pitems) do insert(result, k) end
     return result
@@ -148,7 +150,7 @@ end
 --    Returns true if set contains [all of] the item(s), false otherwise.
 --
 function Set:contains(...)
-    local pitems = private[self].items
+    local pitems = self:private().items
     local items = flatten(...)
     if(#items == 0) then return nil end
     for _, v in ipairs(items) do
@@ -163,7 +165,7 @@ Set.containsAll = Set.contains
 --    Returns true if set contains [any of] the item(s), false otherwise.
 --
 function Set:containsAny(...)
-    local pitems = private[self].items
+    local pitems = self:private().items
     local items = flatten(...)
     if(#items == 0) then return nil end
     for _, v in ipairs(items) do
@@ -177,7 +179,7 @@ end
 --    Adds the item(s) to the set, then returns the set.
 --
 function Set:add(...)
-    local p = private[self]
+    local p = self:private()
     local items = flatten(...)
     for _, v in ipairs(items) do
         if(p.items[v] == nil) then
@@ -193,7 +195,7 @@ end
 --    Removes the item(s) from the set, then returns the set.
 --
 function Set:remove(...)
-    local p = private[self]
+    local p = self:private()
     local pitems = p.items
     local items = flatten(...)
     for _, v in ipairs(items) do
@@ -254,11 +256,17 @@ function Set:intersect(second)
 end
 
 --
+--  Set:id()
+--
+function Set:id()
+    return self:private().id
+end
+--
 --  Set:size()
 --    Returns the number of elements in the set
 --
 function Set:size()
-    return private[self].size
+    return self:private().size
 end
 
 --
@@ -328,7 +336,7 @@ metatable.__len = Set.size
 --
 function metatable:__ipairs()
     local i = 0
-    local pitems = private[self].items
+    local pitems = self:private().items
     local n = #pitems
     return function()
         i = i + 1
@@ -411,6 +419,9 @@ do
     local lset = set - bob
     assert(lset:size() == 2)
     assert(not lset:contains("fourth"))
+
+    assert(lset:private().id == 7)
+    assert(Set:private().next_id == 8)
 end
 
 ---------------------

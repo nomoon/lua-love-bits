@@ -1,5 +1,5 @@
 local Class = {
-    _VERSION     = '0.1.7',
+    _VERSION     = '0.2',
     _DESCRIPTION = 'Very simple class definition helper',
     _URL         = 'https://github.com/nomoon',
     _LONGDESC    = [[
@@ -16,6 +16,11 @@ local Class = {
         is called with the new instance. You need not return anything from
         .new(), as the constructor will return the object once the function is
         finished.
+
+        For private(ish) class and instance variables, you can call
+        Class:private() or self:private() to retrieve a table reference.
+        Passing a table into the private() method will set the private store to
+        that table.
 
         Complete Example:
             local Class = require('class')
@@ -50,58 +55,78 @@ local Class = {
     ]]
 }
 
+-- Private list of all classes defined.
+local classes_defined = {}
+
 ----------------------
 -- Class Constructor
 ----------------------
 
-setmetatable(Class, {__call = function(_, name, existing_table)
-    if(not string.match(name,"^%a%w*$")) then
-        return nil, "Illegal ClassName"
+setmetatable(Class, {__call = function(_, class_name, existing_table)
+    if(not class_name:match("^%a%w*$")) then
+        return nil, "Illegal class name."
+    end
+    class_name = class_name:gsub("^%l", string.upper)
+    if classes_defined[class_name] then
+        return nil, "A class with that name has already been defined."
     end
 
     -- Define a base class table.
-
     local base_class
     if(type(existing_table) == 'table') then
         base_class = existing_table
     else
-        base_class = { }
+        base_class = {}
     end
+
+    base_class.new = base_class.new or function() end
+    base_class.className = function() return class_name end
 
     -- Define the metatable for instances of the class.
     local metatable = {__index = base_class}
-
-    base_class.new = function() end
-    base_class.className = function() return name end
     base_class.getMetatable = function() return metatable end
 
     -- Define a basic type checker
     function base_class.isInstance(obj)
-        return (getmetatable(obj) == metatable)
+        if(type(obj) == 'table' and type(obj.className) == 'function') then
+            return (obj:className() == class_name)
+        end
     end
     -- Alias type-checker to function .is{ClassName}()
-    base_class['is'..name:gsub("^%l", string.upper)] = base_class.isInstance
+    base_class['is'..class_name] = base_class.isInstance
+
+    -- Define private store and accessor method
+    local private = setmetatable({}, {__mode = "k"})
+    private[base_class] = {}
+    function base_class.private(instance, value)
+        if(base_class.isInstance(instance) or instance == base_class) then
+            if(value and type(value) == 'table') then
+                private[instance] = value
+            end
+            return private[instance]
+        end
+    end
 
     -- Setup class metatable for Class(params) constructor
     setmetatable(base_class, {
         __call = function(_, ...)
+            -- Instantiate new class and private table
             local new_instance = setmetatable({}, metatable)
+            private[new_instance] = {}
+
+            -- Run user-defined constructor
             base_class.new(new_instance, ...)
-            new_instance.new = function() end -- Prevent re-initializing object.
+
+            -- Override .new on instance to prevent re-initializing
+            new_instance.new = function() end
             return new_instance
         end
     })
 
+    classes_defined[class_name] = true
     return base_class, metatable
 end
 })
-
---
---  Helper to initialize a weak-key store for private class data.
---
-function Class.initPrivate()
-    return setmetatable({}, {__mode = "k"})
-end
 
 ---------------
 -- Unit Tests
@@ -111,6 +136,7 @@ do
     assert(WrongClassName == nil)
 
     local Animal = Class('Animal')
+    assert(Class('animal') == nil)
 
     function Animal:new(kind)
         self.kind = kind
