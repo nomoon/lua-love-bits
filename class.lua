@@ -1,5 +1,5 @@
 local Class = {
-    _VERSION     = '0.2',
+    _VERSION     = '0.2.1',
     _DESCRIPTION = 'Very simple class definition helper',
     _URL         = 'https://github.com/nomoon',
     _LONGDESC    = [[
@@ -79,12 +79,13 @@ setmetatable(Class, {__call = function(_, class_name, existing_table)
         base_class = {}
     end
 
-    base_class.new = base_class.new or function() end
-    base_class.className = function() return class_name end
+    function base_class.class() return base_class end
+    function base_class.className() return class_name end
+    function base_class.new() end
 
     -- Define the metatable for instances of the class.
     local metatable = {__index = base_class}
-    base_class.getMetatable = function() return metatable end
+    function base_class.getMetatable() return metatable end
 
     -- Define a basic type checker
     function base_class.isInstance(obj)
@@ -148,6 +149,10 @@ do
 
     local mrEd = Animal('horse')
     assert(mrEd:getKind() == 'horse')
+
+    assert(Animal.class() == Animal)
+    assert(Animal:class() == Animal)
+    assert(mrEd:class() == Animal)
 
     assert(Animal.isInstance(mrEd))
     assert(Animal.isAnimal(mrEd))

@@ -1,5 +1,5 @@
 local Set = {
-    _VERSION     = 'set.lua 0.5',
+    _VERSION     = 'set.lua 0.5.1',
     _DESCRIPTION = 'Simple Set operations for Lua',
     _URL         = 'https://github.com/nomoon',
     _LONGDESC    = [[
@@ -261,20 +261,13 @@ end
 function Set:id()
     return self:private().id
 end
+
 --
 --  Set:size()
 --    Returns the number of elements in the set
 --
 function Set:size()
     return self:private().size
-end
-
---
---  Set:class()
---    Returns the class.
---
-function Set:class()
-    return Set
 end
 
 ------------------------
