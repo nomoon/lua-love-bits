@@ -1,5 +1,5 @@
 local Set = {
-    _VERSION     = 'set.lua 0.5.1',
+    _VERSION     = 'set.lua 0.6',
     _DESCRIPTION = 'Simple Set operations for Lua',
     _URL         = 'https://github.com/nomoon',
     _LONGDESC    = [[
@@ -122,7 +122,7 @@ end
 --  Class constructor:
 --  Set(items...)
 --
-function Set:new(...)
+function Set:initialize(...)
     self:private({
         id = Set:private().next_id,
         items = {},

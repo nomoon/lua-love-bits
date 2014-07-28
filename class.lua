@@ -1,5 +1,5 @@
 local Class = {
-    _VERSION     = '0.2.1',
+    _VERSION     = '0.3',
     _DESCRIPTION = 'Very simple class definition helper',
     _URL         = 'https://github.com/nomoon',
     _LONGDESC    = [[
@@ -11,11 +11,11 @@ local Class = {
         will be added to that table.
         The class constructor returns `Class, Metatable`.
 
-        Then, define a function `MyClass:new(params)`. When you call
-        `MyClass(params)` an instance is created and `MyClass.new(self, params)`
+        Then, define a function `MyClass:initialize(params)`. When you call
+        `MyClass(params)` an instance is created and `.initialize(self, params)`
         is called with the new instance. You need not return anything from
-        .new(), as the constructor will return the object once the function is
-        finished.
+        .initialize(), as the constructor will return the object once the
+        function is finished.
 
         For private(ish) class and instance variables, you can call
         Class:private() or self:private() to retrieve a table reference.
@@ -26,7 +26,7 @@ local Class = {
             local Class = require('class')
             local Animal = Class('animal')
 
-            function Animal:new(kind)
+            function Animal:initialize(kind)
                 self.kind = kind
             end
 
@@ -79,22 +79,23 @@ setmetatable(Class, {__call = function(_, class_name, existing_table)
         base_class = {}
     end
 
-    function base_class.class() return base_class end
-    function base_class.className() return class_name end
-    function base_class.new() end
-
     -- Define the metatable for instances of the class.
-    local metatable = {__index = base_class}
+    local metatable = {
+        __name = class_name,
+        __index = base_class
+    }
     function base_class.getMetatable() return metatable end
 
     -- Define a basic type checker
     function base_class.isInstance(obj)
-        if(type(obj) == 'table' and type(obj.className) == 'function') then
-            return (obj:className() == class_name)
-        end
+        return (getmetatable(obj) == metatable)
     end
     -- Alias type-checker to function .is{ClassName}()
     base_class['is'..class_name] = base_class.isInstance
+
+    function base_class.class() return base_class end
+    function base_class.className(obj) return metatable.__name end
+    function base_class.initialize() end
 
     -- Define private store and accessor method
     local private = setmetatable({}, {__mode = "k"})
@@ -116,10 +117,10 @@ setmetatable(Class, {__call = function(_, class_name, existing_table)
             private[new_instance] = {}
 
             -- Run user-defined constructor
-            base_class.new(new_instance, ...)
+            base_class.initialize(new_instance, ...)
 
-            -- Override .new on instance to prevent re-initializing
-            new_instance.new = function() end
+            -- Override .initialize on instance to prevent re-initializing
+            new_instance.initialize = function() end
             return new_instance
         end
     })
@@ -139,7 +140,7 @@ do
     local Animal = Class('Animal')
     assert(Class('animal') == nil)
 
-    function Animal:new(kind)
+    function Animal:initialize(kind)
         self.kind = kind
     end
 
@@ -159,12 +160,12 @@ do
     assert(mrEd:className() == "Animal")
 
     local gunther = Animal('penguin')
-    assert(gunther:new() == nil)
+    assert(gunther:initialize() == nil)
     assert(gunther:getKind() == 'penguin')
 
     local Plant = Class('Plant')
 
-    function Plant:new(edible)
+    function Plant:initialize(edible)
         self.edible = edible
     end
 
@@ -174,9 +175,12 @@ do
 
     local stella = Plant(false)
     assert(not stella:isEdible())
-    assert(not stella.getKind)
-    assert(not Animal.isInstance(stella))
+    assert(stella:className() == "Plant")
     assert(Plant.isPlant(stella))
+
+    assert(not stella.getKind)
+    assert(not Animal.isInstance(nil))
+    assert(not Animal.isInstance(stella))
 end
 
 --
