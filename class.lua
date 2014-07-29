@@ -1,5 +1,5 @@
 local Class = {
-    _VERSION     = '0.3',
+    _VERSION     = '0.3.1',
     _DESCRIPTION = 'Very simple class definition helper',
     _URL         = 'https://github.com/nomoon',
     _LONGDESC    = [[
@@ -55,9 +55,6 @@ local Class = {
     ]]
 }
 
--- Private list of all classes defined.
-local classes_defined = {}
-
 ----------------------
 -- Class Constructor
 ----------------------
@@ -67,9 +64,6 @@ setmetatable(Class, {__call = function(_, class_name, existing_table)
         return nil, "Illegal class name."
     end
     class_name = class_name:gsub("^%l", string.upper)
-    if classes_defined[class_name] then
-        return nil, "A class with that name has already been defined."
-    end
 
     -- Define a base class table.
     local base_class
@@ -111,6 +105,7 @@ setmetatable(Class, {__call = function(_, class_name, existing_table)
 
     -- Setup class metatable for Class(params) constructor
     setmetatable(base_class, {
+        __name = class_name,
         __call = function(_, ...)
             -- Instantiate new class and private table
             local new_instance = setmetatable({}, metatable)
@@ -125,7 +120,6 @@ setmetatable(Class, {__call = function(_, class_name, existing_table)
         end
     })
 
-    classes_defined[class_name] = true
     return base_class, metatable
 end
 })
@@ -138,7 +132,6 @@ do
     assert(WrongClassName == nil)
 
     local Animal = Class('Animal')
-    assert(Class('animal') == nil)
 
     function Animal:initialize(kind)
         self.kind = kind
