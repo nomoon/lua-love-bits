@@ -1,5 +1,5 @@
 local Class = {
-    _VERSION     = '0.3.1',
+    _VERSION     = '0.3.5',
     _DESCRIPTION = 'Very simple class definition helper',
     _URL         = 'https://github.com/nomoon',
     _LONGDESC    = [[
@@ -17,10 +17,12 @@ local Class = {
         .initialize(), as the constructor will return the object once the
         function is finished.
 
-        For private(ish) class and instance variables, you can call
+        For private class and instance variables, you can call
         Class:private() or self:private() to retrieve a table reference.
         Passing a table into the private() method will set the private store to
         that table.
+
+        Each instance's unique object ID can be retrieved via :getID()
 
         Complete Example:
             local Class = require('class')
@@ -107,15 +109,24 @@ setmetatable(Class, {__call = function(_, class_name, existing_table)
     setmetatable(base_class, {
         __name = class_name,
         __call = function(_, ...)
-            -- Instantiate new class and private table
-            local new_instance = setmetatable({}, metatable)
+            -- Instantiate new class and make id from pointer
+            local new_instance = {}
+            local id = tostring(new_instance):match('0x[0-9a-f]+$')
+            function new_instance.getID() return id end
+
+            -- Now that we have the id, we can attach the metatable
+            -- (in case __tostring got overwritten)
+            setmetatable(new_instance, metatable)
+
+            -- Create an empty private store for the instance
             private[new_instance] = {}
 
             -- Run user-defined constructor
             base_class.initialize(new_instance, ...)
 
             -- Override .initialize on instance to prevent re-initializing
-            new_instance.initialize = function() end
+            function new_instance.initialize() return end
+
             return new_instance
         end
     })
@@ -174,6 +185,8 @@ do
     assert(not stella.getKind)
     assert(not Animal.isInstance(nil))
     assert(not Animal.isInstance(stella))
+
+    assert(stella:getID():match('0x[0-9a-f]+$'))
 end
 
 --
