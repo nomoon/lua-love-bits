@@ -1,5 +1,5 @@
 local Set = {
-    _VERSION     = 'set.lua 0.6',
+    _VERSION     = 'set.lua 0.7',
     _DESCRIPTION = 'Simple Set operations for Lua',
     _URL         = 'https://github.com/nomoon',
     _LONGDESC    = [[
@@ -75,8 +75,9 @@ local concat = table.concat
 local inf = math.huge
 local neg_inf = -math.huge
 
--- Using the Class library
-local Class = require('class')
+-- Using the Class library (using relative path)
+local path = debug.getinfo(1).short_src:match("(.-)[^\\/]-%.?[^%.\\/]*$")
+local Class = require(path..'class')
 
 -------------------
 --  Private Stuff
@@ -86,11 +87,6 @@ local Class = require('class')
 --  Class-ify Set table, get metatable (filled below)
 --
 local _, metatable = Class('Set', Set)
-
---
---  Set private class variables
---
-Set:private({ next_id = 1 })
 
 --
 --  Helper: Flattens/sanitizes a table into its values.
@@ -124,12 +120,9 @@ end
 --
 function Set:initialize(...)
     self:private({
-        id = Set:private().next_id,
         items = {},
         size  = 0
     })
-
-    Set:private().next_id = Set:private().next_id + 1
 
     self:add(...)
 end
@@ -253,13 +246,6 @@ function Set:intersect(second)
         end
     end
     return result
-end
-
---
---  Set:id()
---
-function Set:id()
-    return self:private().id
 end
 
 --
@@ -412,9 +398,6 @@ do
     local lset = set - bob
     assert(lset:size() == 2)
     assert(not lset:contains("fourth"))
-
-    assert(lset:private().id == 7)
-    assert(Set:private().next_id == 8)
 end
 
 ---------------------
