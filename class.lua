@@ -1,5 +1,5 @@
 local Class = {
-    _VERSION     = '0.4.5',
+    _VERSION     = '0.4.6',
     _DESCRIPTION = 'Very simple class definition helper',
     _URL         = 'https://github.com/nomoon',
     _LONGDESC    = [[
@@ -73,14 +73,6 @@ setmetatable(Class, {__call = function(_, class_name, existing_table)
         base_class = existing_table
     else
         base_class = {}
-    end
-
-    -- Make sure the base class has a metatable and the name is set
-    local base_mt = getmetatable(base_class)
-    if(base_mt ~= nil) then
-        base_mt.__name = class_name
-    else
-        setmetatable(base_class, {__name = class_name})
     end
 
     -- Define the metatable for instances of the class.
